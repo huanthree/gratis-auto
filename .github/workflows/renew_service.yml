@@ -1,64 +1,44 @@
-# 工作流名称
 name: Renew Gratis Service
 
 on:
-  # 允许在 GitHub Actions 页面手动触发此工作流，方便测试
   workflow_dispatch:
-
-  # 设置定时任务
   schedule:
-    # 使用 Cron 表达式来定时。
-    # 这个表达式表示在每个月的第 6 天的 UTC 时间凌晨 3:00 运行。
-    # 这将确保它在 7月6日 首次运行，然后是 8月6日、9月6日...
-    # 这可以近似满足“每30天”的需求。
-    # '分 时 日 月 周'
     - cron: '0 3 6 * *'
 
 jobs:
   renew_job:
-    # 在最新的 Ubuntu 虚拟机上运行此任务
     runs-on: ubuntu-latest
-
     steps:
-      # 第1步: 检出你的代码仓库
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 第2步: 设置 Python 环境
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10' # 可以指定一个具体的 Python 版本
+          python-version: '3.10'
 
-      # 第3步: 安装脚本所需的依赖库
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install playwright
 
-      # 第4步: 安装 Playwright 所需的浏览器驱动
-      # 这一步非常重要，否则 Playwright 无法启动浏览器
       - name: Install Playwright browsers
         run: playwright install chromium
 
-      # 第5步: 运行续订脚本
       - name: Run the renewal script
-        # 通过 env 关键字将 GitHub Secrets 传递给脚本作为环境变量
         env:
           GRATIS_COOKIE: ${{ secrets.GRATIS_COOKIE }}
           GRATIS_EMAIL: ${{ secrets.GRATIS_EMAIL }}
           GRATIS_PASSWORD: ${{ secrets.GRATIS_PASSWORD }}
         run: python renew_script.py
 
-      # 第6步（可选）: 上传截图作为构建产物
-      # 如果脚本执行失败，会生成截图。这一步可以将截图文件保存下来，方便你下载查看问题。
-      - name: Upload screenshots on failure
-        if: failure() # 仅在前面的步骤失败时运行
+      # MODIFIED: 上传所有生成的截图作为构建产物
+      # 无论成功或失败，都执行此步骤，以便我们能看到调试截图
+      - name: Upload screenshots
+        if: always() # 无论成功或失败都运行
         uses: actions/upload-artifact@v4
         with:
-          name: error-screenshots
+          name: execution-screenshots
           path: |
-            login_failed.png
-            renew_button_not_found.png
-            general_error.png
-          if-no-files-found: ignore # 如果没有找到文件也不要报错
+            *.png
+          if-no-files-found: ignore
